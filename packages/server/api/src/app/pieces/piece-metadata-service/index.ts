@@ -25,6 +25,69 @@ export const pieceMetadataService = (log: FastifyBaseLogger): PieceMetadataServi
             return FastDbPieceMetadataService(log)
         case PiecesSource.FILE:
             return FilePieceMetadataService(log)
+        case PiecesSource.DB_AND_FILE:
+            return createDbAndFileMetadataService(log)
+    }
+}
+
+const createDbAndFileMetadataService = (log: FastifyBaseLogger): PieceMetadataService => {
+    const dbService = FastDbPieceMetadataService(log)
+    const fileService = FilePieceMetadataService(log)
+
+    return {
+        async list(params) {
+            const [dbPieces, filePieces] = await Promise.all([
+                dbService.list(params),
+                fileService.list(params),
+            ])
+            const merged = new Map<string, PieceMetadataModelSummary>()
+            for (const piece of dbPieces) {
+                merged.set(piece.name, piece)
+            }
+            for (const piece of filePieces) {
+                merged.set(piece.name, piece)
+            }
+            return Array.from(merged.values())
+        },
+        async get(params) {
+            const dbResult = await dbService.get(params)
+            if (dbResult) {
+                return dbResult
+            }
+            return fileService.get(params)
+        },
+        async getOrThrow(params) {
+            try {
+                return await dbService.getOrThrow(params)
+            }
+            catch (error) {
+                return fileService.getOrThrow(params)
+            }
+        },
+        async getVersions(params) {
+            const [dbVersions, fileVersions] = await Promise.all([
+                dbService.getVersions(params),
+                fileService.getVersions(params),
+            ])
+            return {
+                ...dbVersions,
+                ...fileVersions,
+            }
+        },
+        async create(params) {
+            return dbService.create(params)
+        },
+        async updateUsage(params) {
+            return dbService.updateUsage(params)
+        },
+        async resolveExactVersion(params) {
+            try {
+                return await dbService.resolveExactVersion(params)
+            }
+            catch (error) {
+                return fileService.resolveExactVersion(params)
+            }
+        },
     }
 }
 

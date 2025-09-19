@@ -138,6 +138,7 @@ export enum PiecesSource {
     CLOUD_AND_DB = 'CLOUD_AND_DB',
     DB = 'DB',
     FILE = 'FILE',
+    DB_AND_FILE = 'DB_AND_FILE',
 }
 
 export enum ContainerType {

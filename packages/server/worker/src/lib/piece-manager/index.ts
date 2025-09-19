@@ -7,6 +7,7 @@ const pieceManagerVariant: Record<PiecesSource, new () => PieceManager> = {
     [PiecesSource.FILE]: LocalPieceManager,
     [PiecesSource.CLOUD_AND_DB]: RegistryPieceManager,
     [PiecesSource.DB]: RegistryPieceManager,
+    [PiecesSource.DB_AND_FILE]: RegistryPieceManager,
 }
 
 
