@@ -1,0 +1,18 @@
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+RUN apk add --no-cache python3 py3-pip py3-setuptools make g++
+
+COPY package*.json ./
+RUN npm install --legacy-peer-deps
+
+COPY . .
+
+RUN npx nx build engine
+RUN npx nx build server-api
+
+FROM ghcr.io/activepieces/activepieces:0.69.0
+
+COPY --from=builder /app/dist/packages/engine /usr/src/app/dist/packages/engine
+COPY --from=builder /app/dist/packages/server/api /usr/src/app/dist/packages/server/api

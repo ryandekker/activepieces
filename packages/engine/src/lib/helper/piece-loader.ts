@@ -14,12 +14,22 @@ const folderExists = async (filePath: string): Promise<boolean> => {
 }
 
 async function getPiecePath({ packageName, pieceSource }: { packageName: string, pieceSource: string }): Promise<string> {
-    let currentDir = __dirname
-    const rootDir = path.parse(currentDir).root
-    const maxIterations = currentDir.split(path.sep).length
+    // When running in DB mode, prefer a locally mounted version if present.
+    if (pieceSource !== 'FILE') {
+        const devOverridePath = path.resolve('/usr/src/app/cache/v3/common/pieces/@activepieces', packageName)
+        if (await folderExists(devOverridePath)) {
+            return devOverridePath
+        }
+    }
+
     if (pieceSource === 'FILE') {
         return packageName
     }
+
+    let currentDir = __dirname
+    const rootDir = path.parse(currentDir).root
+    const maxIterations = currentDir.split(path.sep).length
+
     for (let i = 0; i < maxIterations; i++) {
         const piecePath = path.resolve(currentDir, 'pieces', packageName, 'node_modules', packageName)
         if (await folderExists(piecePath)) {
@@ -31,7 +41,7 @@ async function getPiecePath({ packageName, pieceSource }: { packageName: string,
         }
         currentDir = parentDir
     }
-    
+
     throw new Error(`Piece path not found for package: ${packageName}`)
 }
 const loadPieceOrThrow = async (
