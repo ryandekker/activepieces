@@ -21,20 +21,27 @@ import {
 import { PieceMetadataService } from './piece-metadata-service'
 import { pieceListUtils } from './utils'
 import { toPieceMetadataModelSummary } from '.'
-
-const loadPiecesMetadata = async (): Promise<PieceMetadata[]> => {
-    const packages = system.getOrThrow(AppSystemProp.DEV_PIECES)?.split(',')
-    const pieces = await filePiecesUtils(packages, system.globalLogger()).findAllPieces()
+const loadPiecesMetadata = async (log: FastifyBaseLogger): Promise<PieceMetadata[]> => {
+    // Debug the environment variable first
+    const devPiecesEnv = system.getOrThrow(AppSystemProp.DEV_PIECES)
+    log.info(`DEV_PIECES environment variable: "${devPiecesEnv}" (type: ${typeof devPiecesEnv}, length: ${devPiecesEnv?.length})`)
+    
+    const packages = devPiecesEnv?.split(',')
+    log.info(`packages to load: [${packages?.join(', ')}] (count: ${packages?.length}, type: ${typeof packages})`)
+    
+    const pieces = await filePiecesUtils(packages, log).findAllPieces()
+    const pieceNames = pieces.map(p => p.name)
+    log.info(`loaded pieces: [${pieceNames.join(', ')}] (count: ${pieces.length}, first: ${pieces[0]?.name})`)
 
     return pieces.sort((a, b) =>
         a.displayName.toUpperCase().localeCompare(b.displayName.toUpperCase()),
     )
 }
-export const FilePieceMetadataService = (_log: FastifyBaseLogger): PieceMetadataService => {
+export const FilePieceMetadataService = (log: FastifyBaseLogger): PieceMetadataService => {
     return {
         async list(params): Promise<PieceMetadataModelSummary[]> {
             const { projectId } = params
-            const originalPiecesMetadata: PieceMetadataSchema[] = (await loadPiecesMetadata()).map((p) => {
+            const originalPiecesMetadata: PieceMetadataSchema[] = (await loadPiecesMetadata(log)).map((p) => {
                 return {
                     id: nanoid(),
                     ...p,
@@ -64,7 +71,7 @@ export const FilePieceMetadataService = (_log: FastifyBaseLogger): PieceMetadata
             throw new Error('Updating pieces is not supported in development mode')
         },
         async getVersions(params): Promise<ListVersionsResponse> {
-            const piecesMetadata = await loadPiecesMetadata()
+            const piecesMetadata = await loadPiecesMetadata(log)
             const pieceMetadata = piecesMetadata.find((p) => p.name === params.name)
             return pieceMetadata?.version ? { [pieceMetadata.version]: {} } : {}
         },
@@ -72,7 +79,7 @@ export const FilePieceMetadataService = (_log: FastifyBaseLogger): PieceMetadata
             name,
             projectId,
         }): Promise<PieceMetadataModel | undefined> {
-            const piecesMetadata = await loadPiecesMetadata()
+            const piecesMetadata = await loadPiecesMetadata(log)
             const pieceMetadata = piecesMetadata.find((p) => p.name === name)
 
             if (isNil(pieceMetadata)) {

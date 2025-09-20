@@ -77,15 +77,25 @@ export const filePiecesUtils = (packages: string[], log: FastifyBaseLogger) => {
     }
 
     async function findAllPieces(): Promise<PieceMetadata[]> {
-        const pieces = await loadPiecesFromFolder(resolve(cwd(), 'dist', 'packages', 'pieces'))
+        const searchPath = resolve(cwd(), 'dist', 'packages', 'pieces')
+        log.info(`findAllPieces searching in: ${searchPath} (cwd: ${cwd()})`)
+        const pieces = await loadPiecesFromFolder(searchPath)
         return pieces
     }
 
     async function loadPiecesFromFolder(folderPath: string): Promise<PieceMetadata[]> {
         try {
-            const paths = (await findAllPiecesFolder(folderPath)).filter(p => packages.some(packageName => p.includes(packageName)))
+            log.info(`loadPiecesFromFolder: searching in ${folderPath}`)
+            const allPaths = await findAllPiecesFolder(folderPath)
+            log.info(`loadPiecesFromFolder: found ${allPaths.length} total paths: ${JSON.stringify(allPaths)}`)
+            
+            const paths = allPaths.filter(p => packages.some(packageName => p.includes(packageName)))
+            log.info(`loadPiecesFromFolder: after filtering for packages ${JSON.stringify(packages)}, found ${paths.length} matching paths: ${JSON.stringify(paths)}`)
+            
             const pieces = await Promise.all(paths.map((p) => loadPieceFromFolder(p)))
-            return pieces.filter((p): p is PieceMetadata => p !== null)
+            const validPieces = pieces.filter((p): p is PieceMetadata => p !== null)
+            log.info(`loadPiecesFromFolder: loaded ${validPieces.length} valid pieces from ${pieces.length} attempts`)
+            return validPieces
         }
         catch (e) {
             const err = e as Error
